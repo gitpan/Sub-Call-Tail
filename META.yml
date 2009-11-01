@@ -8,6 +8,7 @@ build_requires:
   Test::More: 0.88
   Test::use::ok: 0
 configure_requires:
+  B::Hooks::OP::Check::EntersubForCV: 0
   ExtUtils::Depends: 0.302
   ExtUtils::MakeMaker: 6.42
 distribution_type: module
@@ -22,9 +23,10 @@ no_index:
     - inc
     - t
 requires:
+  B::Hooks::OP::Check::EntersubForCV: 0
   parent: 0
   perl: 5.8.1
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/nothingmuch/Sub-Call-Tail.git
-version: 0.02
+version: 0.03
