@@ -7,7 +7,7 @@ require 5.008001;
 use parent qw(Exporter DynaLoader);
 use B::Hooks::OP::Check::EntersubForCV;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 $VERSION = eval $VERSION;
 
 our @EXPORT = our @EXPORT_OK = qw(tail);
@@ -51,6 +51,8 @@ at compile time into a goto.
 
 L<B::Hooks::OP::Check::EntersubForCV>
 
+L<CPS>
+
 =head1 VERSION CONTROL
 
 L<http://github.com/nothingmuch/Sub-Call-Tail>
@@ -67,4 +69,4 @@ Andrew Main (Zefram)
 	This program is free software; you can redistribute
 	it and/or modify it under the same terms as Perl itself.
 
-=
+=cut

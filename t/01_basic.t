@@ -64,6 +64,28 @@ sub anon {
     tail((sub { $x })->());
 }
 
+sub tmps {
+    my $y = "";
+    tail args(map { $_ . $y } @_);
+}
+
+sub error {
+    no strict 'subs';
+    package blerghch; # AUTOLOAD
+    ::tail does_not_exist();
+}
+
+sub not_sub {
+    my $sub = [];
+    tail $sub->();
+}
+
+sub loose {
+    no strict 'refs';
+    my $sub = "main::args";
+    tail $sub->(@_);
+}
+
 sub tests {
     my $foo = bless {};
     my $copy = \$foo;
@@ -85,6 +107,16 @@ sub tests {
 
     is( anon_immortal(), 3, "anon sub (not cloned)" );
     is( anon(), 3, "anon sub" );
+
+    is( tmps(qw(foo bar)), "foo bar", "tmps" );
+
+    is( loose(qw(oh hai)), "oh hai", "no strict" );
+
+    eval { error() };
+    like( $@, qr/does_not_exist/, "error on nonexistent sub" );
+
+    eval { not_sub() };
+    like( $@, qr/CODE/, "error on incorrect data type" );
 }
 
 tests();

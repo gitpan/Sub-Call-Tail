@@ -8,7 +8,7 @@
 #include "ppport.h"
 
 #ifndef AvREIFY_only
-#define AvREIFY_only(av)	AvREAL_off(av)
+#define AvREIFY_only(av)	(AvREIFY_off(av), AvREAL_on(av))
 #endif
 
 #include "hook_op_check_entersubforcv.h"
@@ -25,7 +25,6 @@ goto_entersub (pTHX) {
     CV *cv;
     AV *av;
     IV items = SP - MARK;
-    int reify = 0;
     IV cxix = cxstack_ix;
     PERL_CONTEXT *cx = NULL;
 
@@ -83,7 +82,7 @@ goto_entersub (pTHX) {
                     DIE(aTHX_ PL_no_usym, "a subroutine");
                 if (PL_op->op_private & HINT_STRICT_REFS)
                     DIE(aTHX_ PL_no_symref, sym, "a subroutine");
-                cv = get_cvn_flags(sym, len, GV_ADD|SvUTF8(sv));
+                cv = get_cv(sym, GV_ADD|SvUTF8(sv));
                 break;
             }
 got_rv:
@@ -168,31 +167,29 @@ try_autoload:
              * the scope being destroyed, so we should reify @_ to increase
              * the refcnt (this is suboptimal for tail foo($_[0]) or
              * something but that's just a minor refcounting cost */
-            reify = reify || ( SvTEMP(*MARK) || SvPADMY(*MARK) && !SvFAKE(*MARK) );
 
-            SvTEMP_off(*MARK);
+            if ( SvTEMP(*MARK) || SvPADMY(*MARK) ) {
+                I32 key;
+
+                key = AvMAX(av) + 1;
+                while (key > AvFILLp(av) + 1)
+                    AvARRAY(av)[--key] = &PL_sv_undef;
+                while (key) {
+                    SV * const sv = AvARRAY(av)[--key];
+                    assert(sv);
+                    if (sv != &PL_sv_undef)
+                        SvREFCNT_inc_simple_void_NN(sv);
+                }
+                key = AvARRAY(av) - AvALLOC(av);
+                while (key)
+                    AvALLOC(av)[--key] = &PL_sv_undef;
+                AvREIFY_off(av);
+                AvREAL_on(av);
+
+                break;
+            }
         }
         MARK++;
-    }
-
-
-    if ( reify ) {
-        I32 key;
-
-        key = AvMAX(av) + 1;
-        while (key > AvFILLp(av) + 1)
-            AvARRAY(av)[--key] = &PL_sv_undef;
-        while (key) {
-            SV * const sv = AvARRAY(av)[--key];
-            assert(sv);
-            if (sv != &PL_sv_undef)
-                SvREFCNT_inc_simple_void_NN(sv);
-        }
-        key = AvARRAY(av) - AvALLOC(av);
-        while (key)
-            AvALLOC(av)[--key] = &PL_sv_undef;
-        AvREIFY_off(av);
-        AvREAL_on(av);
     }
 
     SP -= items;
@@ -221,12 +218,15 @@ convert_to_tailcall (pTHX_ OP *o, CV *cv, void *user_data) {
     if ( entersub->op_ppaddr == error_op )
         croak("The tail call modifier cannot be applied to itself");
 
+    if ( entersub->op_ppaddr != PL_ppaddr[OP_ENTERSUB] )
+        croak("The tail call modifier can only be applied to normal subroutine calls");
+
     if ( !(entersub->op_flags & OPf_STACKED) ) {
-	((LISTOP *)cUNOPo->op_first)->op_first->op_sibling = entersub->op_sibling;
-	entersub->op_sibling = NULL;
-	op_free(o);
-	entersub->op_private &= ~(OPpENTERSUB_INARGS|OPpENTERSUB_NOPAREN);
-	return newLOOPEX(OP_GOTO, (OP*)entersub);
+        ((LISTOP *)cUNOPo->op_first)->op_first->op_sibling = entersub->op_sibling;
+        entersub->op_sibling = NULL;
+        op_free(o);
+        entersub->op_private &= ~(OPpENTERSUB_INARGS|OPpENTERSUB_NOPAREN);
+        return newLOOPEX(OP_GOTO, (OP*)entersub);
     }
 
     /* change the ppaddr of the inner entersub to become a custom goto op that
