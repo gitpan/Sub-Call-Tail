@@ -1,3 +1,6 @@
+0.05
+	- Remove the deprecated use of qw() as parens in Makefile.PL
+
 0.04
 	- Correct fallback definition of AvREIFY_only (Andrew Rodland)
 

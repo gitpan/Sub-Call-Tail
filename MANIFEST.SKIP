@@ -44,3 +44,5 @@
 \.(?:bs|c|o)$
 
 \.gitignore$
+
+^MYMETA\.
